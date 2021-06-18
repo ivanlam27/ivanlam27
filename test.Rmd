@@ -1,0 +1,145 @@
+```{r}
+library(GEOquery)
+library(affy)
+```
+
+
+
+```{r}
+gse32323 <- getGEO(filename = 'GSE32323_series_matrix.txt')
+gse8671 <- getGEO(filename = 'GSE8671_series_matrix.txt')
+```
+
+```{r}
+meta32323 <-  gse32323@phenoData@data
+meta8671 <- gse8671@phenoData@data
+```
+
+```{r}
+df <- data.frame(sample = c(rownames(meta32323)[1:34], rownames(meta8671)),
+                 tissue = c(meta32323$`tissue:ch1`[1:34], meta8671$`Tissue:ch1`),
+                 batch = c(rep(1,34), rep(2, 64)))
+
+for (i in 1: length(df$tissue)){
+  df$tissue[i] <-  strsplit(df$tissue, split = ',')[[i]][1]
+  if(df$tissue[i] != 'normal'){
+    df$tissue[i] <- 'cancer'
+  }
+}
+```
+
+```{r}
+gse32323 <- ReadAffy(compress = T, celfile.path = "Data/GSE32323_RAW/")
+gse8671 <- ReadAffy(compress = T, celfile.path = "Data/GSE8671_RAW/")
+gse <- merge(gse32323, gse8671)
+```
+
+
+```{r}
+library(simpleaffy)
+```
+
+```{r}
+report <- qc(gse)
+```
+
+```{r}
+visual <- plot(report)
+visual
+```
+
+
+
+```{r}
+library(arrayQualityMetrics)
+```
+
+```{r}
+arrayQualityMetrics(gse, force = T, do.logtransform = T)
+```
+
+```{r}
+library(affyPLM)
+```
+
+```{r}
+PLM <-fitPLM(gse)
+```
+
+```{r}
+nuse.dat <- NUSE(PLM, type = "values")
+boxplot(nuse.dat)
+```
+```{r}
+library(affyQCReport)
+```
+```{r}
+QCReport(gse, file = "output.pdf")
+```
+
+
+```{r}
+normalised <- rma(gse)
+```
+```{r}
+library(sva)
+```
+
+
+```{r}
+feature <- df[,'tissue']
+batch <- df[,3]
+mod <- model.matrix(~feature, df)
+CB <- ComBat(normalised, batch, mod)
+```
+
+```{r}
+boxplot(CB)
+```
+
+```{r}
+pr <- prcomp(CB, scale = F, center = F)
+PC <- pr$rotation[,1:2]
+per <- pr$importance
+```
+
+```{r}
+library(ggplot2)
+library(readr)
+library(dplyr)
+```
+
+
+```{r}
+colour <- c(rep('B1_Cancer', 17), rep('B1_Normal', 17), rep('B2_Cancer', 31), rep('B2_Normal', 33))
+new <- mutate(df, colour)
+```
+
+```{r}
+dfpc <- data.frame(PC)
+```
+
+```{r}
+RMAplot <- ggplot(data = dfpc, aes(color = colour)) +
+  geom_point(aes(x = PC1, y = PC2)) +
+  ggtitle("RMA Batch Corrected") +
+  labs(colour = "Tissue")
+RMAplot
+```
+
+```{r}
+library(pheatmap)
+```
+
+
+```{r}
+corr <- cor(CB)
+
+annotation <- data.frame(Tissue = factor(df[,1],labels = c(rep('B1_Cancer', 17), rep('B1_Normal', 17), rep('B2_Cancer', 31), rep('B2_Normal', 33))))
+rownames(annotation) <- colnames(corr)
+
+heatmap <- pheatmap((1-corr), annotation_row = annotation, annotation_col = annotation,fontsize_col = 2, fontsize_row = 2)
+
+heatmap
+```
+

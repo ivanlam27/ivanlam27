@@ -1,0 +1,39 @@
+library(shiny)
+library(shinydashboard)
+
+ui <- dashboardPage(
+  dashboardHeader(title = "Simple tabs"),
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
+      menuItem("Widgets", icon = icon("th"), tabName = "widgets",
+               badgeLabel = "new", badgeColor = "green")
+    )
+  ),
+  dashboardBody(
+    tags$head(
+      tags$style(HTML("
+      #sidebarItemExpanded > ul > :last-child {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        background-color: red;
+      }
+
+    "))),
+    tabItems(
+      tabItem(tabName = "dashboard",
+              h2("Dashboard tab content")
+      ),
+      tabItem(tabName = "widgets", id = "widgetstabid",
+              h2("Widgets tab content")
+      )
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  
+}
+
+shinyApp(ui, server)
